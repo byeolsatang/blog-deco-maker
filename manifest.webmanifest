@@ -1,0 +1,16 @@
+{
+  "name": "アメブロ装飾タグメーカー",
+  "short_name": "装飾タグ",
+  "description": "アメブロのHTML編集に貼れる、スタイル直書きの装飾タグを作るツール",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf8f9",
+  "theme_color": "#c2366e",
+  "lang": "ja",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
