@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>アメブロ装飾タグメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* Layout: one-column phone tool — 種類タブ → 入力 → スタイル → 色 → プレビュー → タグ（コピー） */
+:root {
+  --bg: #fbf8f9;
+  --surface: #ffffff;
+  --fg: #2b2328;
+  --muted: #8a7a82;
+  --line: #ecdfe5;
+  --accent: #c2366e;
+  --accent-soft: #fbe8ef;
+  --code-bg: #2b2328;
+  --code-fg: #f6e9ef;
+  --f-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+  --f-body: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --f-mono: Menlo, Consolas, "SFMono-Regular", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1719; --surface: #262023; --fg: #f3ebef; --muted: #a8979f;
+    --line: #3a3035; --accent: #f07fa9; --accent-soft: #3d2530;
+    --code-bg: #120e10; --code-fg: #f6e9ef; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1719; --surface: #262023; --fg: #f3ebef; --muted: #a8979f;
+  --line: #3a3035; --accent: #f07fa9; --accent-soft: #3d2530;
+  --code-bg: #120e10; --code-fg: #f6e9ef; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 18px; }
+header h1 { font-family: var(--f-display); font-size: 1.35rem; margin: 0; text-wrap: balance; }
+header p { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
+.tabs button { font: 700 .9rem var(--f-display); border: 0; background: transparent; color: var(--muted); padding: 10px 2px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+
+section { display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: .75rem; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+textarea, input[type="text"], input[type="url"] { width: 100%; font: 16px var(--f-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+textarea { min-height: 88px; resize: vertical; }
+textarea.mono { font-family: var(--f-mono); font-size: 15px; }
+textarea.short { min-height: 48px; }
+textarea:focus, input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 600 .85rem var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 10px; }
+.sw { aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; position: relative; padding: 0; }
+.sw[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 2px; }
+.sw span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 .7rem var(--f-display); }
+
+.preview { background: #fff; color: #333; border: 1px solid var(--line); border-radius: 12px; padding: 18px 16px; font-size: 15px; line-height: 1.8; overflow-wrap: anywhere; min-width: 0; }
+.preview-note { font-size: .75rem; color: var(--muted); }
+
+.out pre { margin: 0; background: var(--code-bg); color: var(--code-fg); font: 12.5px/1.6 var(--f-mono); padding: 14px; border-radius: 12px; white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; }
+.copy { width: 100%; font: 700 1rem var(--f-display); background: var(--accent); color: #fff; border: 0; border-radius: 12px; padding: 14px; cursor: pointer; }
+.copy.done { background: #2f9e6a; }
+.hint { font-size: .78rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .copy { transition: background .2s; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>アメブロ装飾タグメーカー</h1>
+    <p>スタイル直書きのタグを作って、HTML編集にそのまま貼れます</p>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <section id="f-title" hidden>
+    <label class="label" for="title" id="title-label">タイトル（任意）</label>
+    <input type="text" id="title" placeholder="例：POINT / お知らせ">
+  </section>
+
+  <section id="f-text">
+    <label class="label" for="txt" id="txt-label">テキスト</label>
+    <textarea id="txt"></textarea>
+  </section>
+
+  <section id="f-cite" hidden>
+    <label class="label" for="cite">出典（任意）</label>
+    <input type="text" id="cite" placeholder="例：Weverse / 公式X">
+  </section>
+
+  <section id="f-url" hidden>
+    <label class="label" for="url">リンク先URL</label>
+    <input type="url" id="url" placeholder="https://">
+  </section>
+
+  <section>
+    <span class="label">スタイル</span>
+    <div class="chips" id="variants"></div>
+  </section>
+
+  <section>
+    <span class="label">カラー</span>
+    <div class="swatches" id="swatches"></div>
+  </section>
+
+  <section>
+    <span class="label">プレビュー</span>
+    <div class="preview" id="preview"></div>
+    <span class="preview-note">白背景の記事での見え方です</span>
+  </section>
+
+  <section class="out">
+    <span class="label">タグ</span>
+    <pre id="code"></pre>
+    <button class="copy" id="copy">タグをコピー</button>
+    <p class="hint">アメブロの「HTML表示」に切り替えてから貼り付けてください</p>
+  </section>
+</div>
+
+<script>
+const COLORS = [
+  { id: "pink",   name: "ピンク",   bg: "#fbe8ef", fg: "#c2366e", line: "#e8a3bd", mark: "#f9c9da" },
+  { id: "purple", name: "パープル", bg: "#efe9fb", fg: "#6a3fb5", line: "#bba4e6", mark: "#ddd0f6" },
+  { id: "blue",   name: "ブルー",   bg: "#e7f1fb", fg: "#2563a8", line: "#9ec3ea", mark: "#cce2f7" },
+  { id: "mint",   name: "ミント",   bg: "#e6f6ef", fg: "#22805a", line: "#9fd8bf", mark: "#c6ecdb" },
+  { id: "yellow", name: "イエロー", bg: "#fdf6dc", fg: "#9a6a00", line: "#ecd37c", mark: "#fbe9a0" },
+  { id: "orange", name: "オレンジ", bg: "#fdeee3", fg: "#b9531a", line: "#f0b48d", mark: "#fad4ba" },
+  { id: "gray",   name: "グレー",   bg: "#f1f1f3", fg: "#4a4a55", line: "#c9c9d1", mark: "#e0e0e6" },
+];
+
+// モードごとの設定（並び順＝タブの順）
+const MODES = [
+  { id: "box", name: "囲み", text: "📌 お知らせ\nチケットの申込期間は10/5（日）23:59まで！", fields: ["title"],
+    variants: [["fill","背景だけ"],["border","背景＋枠線"],["dash","点線枠"],["double","二重線"],["round","まる枠"],
+               ["left","左ライン"],["top","上ライン"],["stitch","ステッチ"],["shadow","ずらし影"],["head","見出し帯"]] },
+  { id: "quote", name: "引用", text: "推しが今日も元気でいてくれてありがとう。\nそれだけで十分です。", fields: ["cite"],
+    variants: [["line","左ライン"],["plain","線だけ"],["mark","“ ”マーク"]] },
+  { id: "code", name: "コード", text: "?igsh=…", mono: true,
+    variants: [["inline","文中（インライン）"],["block","ブロック（複数行）"]] },
+  { id: "marker", name: "マーカー", text: "ここ大事！", short: true,
+    variants: [["half","下半分マーカー"],["full","全体マーカー"],["under","太めの下線"],["wave","波線"],["color","文字色＋太字"]] },
+  { id: "heading", name: "見出し", text: "当日のセットリスト", short: true,
+    variants: [["left","左ライン"],["under","下線"],["band","背景帯"],["both","左ライン＋下線"],["pill","ラベル"],["center","中央・上下線"]] },
+  { id: "button", name: "ボタン", text: "詳しくはこちら", short: true, fields: ["url"],
+    variants: [["fill","塗り"],["outline","枠線"],["soft","うす塗り"]] },
+  { id: "divider", name: "区切り線", text: "✦ ✦ ✦", short: true, textLabel: "飾り記号（「飾り」のときだけ使います）",
+    variants: [["solid","実線"],["dashed","破線"],["dotted","点線"],["double","二重線"],["ornament","飾り"]] },
+];
+
+const state = { mode: "box", color: "pink", variant: {} };
+try { const s = JSON.parse(localStorage.getItem("amebloTagState2") || "{}"); Object.assign(state, s); state.variant = s.variant || {}; } catch (e) {}
+MODES.forEach(m => { if (!state.variant[m.id]) state.variant[m.id] = m.variants[0][0]; });
+const texts = Object.fromEntries(MODES.map(m => [m.id, m.text]));
+
+const $ = id => document.getElementById(id);
+const txt = $("txt");
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const nl2br = s => esc(s).replace(/\r?\n/g, "<br>");
+const MONO = "font-family:Menlo, Consolas, monospace;";
+
+function build() {
+  const c = COLORS.find(x => x.id === state.color) || COLORS[0];
+  const v = state.variant[state.mode];
+  const t = txt.value;
+  const title = $("title").value.trim();
+
+  switch (state.mode) {
+    case "box": {
+      const titleTxt = title || (v === "head" ? "POINT" : "");
+      const base = `margin:1em 0; padding:14px 16px; background:${c.bg}; color:#333; line-height:1.8;`;
+      const titleHtml = titleTxt ? `<span style="display:block; font-weight:bold; color:${c.fg}; margin-bottom:4px;">${esc(titleTxt)}</span>` : "";
+      const st = {
+        fill:   `${base} border-radius:8px;`,
+        border: `${base} border:1px solid ${c.line}; border-radius:8px;`,
+        dash:   `${base} border:2px dashed ${c.line}; border-radius:8px;`,
+        double: `${base} border:4px double ${c.line}; border-radius:4px;`,
+        round:  `${base} border:2px solid ${c.line}; border-radius:24px; padding:16px 20px;`,
+        left:   `${base} border-left:4px solid ${c.fg}; border-radius:0 8px 8px 0;`,
+        top:    `${base} border-top:4px solid ${c.fg}; border-radius:0 0 8px 8px;`,
+        stitch: `margin:1.2em 6px; padding:14px 16px; background:${c.bg}; color:#333; line-height:1.8; border:2px dashed ${c.line}; border-radius:8px; box-shadow:0 0 0 6px ${c.bg};`,
+        shadow: `margin:1em 6px 1.2em 0; padding:14px 16px; background:#fff; color:#333; line-height:1.8; border:2px solid ${c.fg}; border-radius:8px; box-shadow:5px 5px 0 ${c.line};`,
+      };
+      if (v === "head") {
+        return `<div style="margin:1em 0; border:2px solid ${c.fg}; border-radius:8px; overflow:hidden; background:#fff;"><div style="background:${c.fg}; color:#fff; font-weight:bold; padding:6px 14px;">${esc(titleTxt)}</div><div style="padding:12px 16px; color:#333; line-height:1.8;">${nl2br(t)}</div></div>`;
+      }
+      return `<div style="${st[v]}">${titleHtml}${nl2br(t)}</div>`;
+    }
+    case "quote": {
+      const cite = $("cite").value.trim();
+      const citeHtml = cite ? `<span style="display:block; text-align:right; font-size:0.8em; color:#888; margin-top:6px;">— ${esc(cite)}</span>` : "";
+      if (v === "plain") return `<blockquote style="margin:1em 0; padding:4px 0 4px 14px; border-left:3px solid ${c.line}; color:#555;">${nl2br(t)}${citeHtml}</blockquote>`;
+      if (v === "mark") return `<blockquote style="margin:1em 0; padding:14px 18px; background:${c.bg}; color:#444; border-radius:8px;"><span style="display:block; font-size:2em; line-height:1; color:${c.line}; font-family:Georgia, serif;">“</span>${nl2br(t)}<span style="display:block; text-align:right; font-size:2em; line-height:1; color:${c.line}; font-family:Georgia, serif;">”</span>${citeHtml}</blockquote>`;
+      return `<blockquote style="margin:1em 0; padding:12px 16px; background:${c.bg}; border-left:4px solid ${c.line}; color:#444; border-radius:0 6px 6px 0;">${nl2br(t)}${citeHtml}</blockquote>`;
+    }
+    case "code":
+      if (v === "inline") return `<code style="background:${c.bg}; color:${c.fg}; padding:2px 6px; border-radius:4px; ${MONO} font-size:0.9em; word-break:break-all;">${esc(t)}</code>`;
+      return `<pre style="background:${c.bg}; color:${c.fg}; padding:12px 14px; border-radius:6px; ${MONO} font-size:0.85em; line-height:1.6; white-space:pre-wrap; word-break:break-all; margin:1em 0;"><code style="${MONO}">${esc(t)}</code></pre>`;
+    case "marker": {
+      const s = esc(t);
+      return {
+        half:  `<span style="background:linear-gradient(transparent 60%, ${c.mark} 60%); font-weight:bold;">${s}</span>`,
+        full:  `<span style="background:${c.mark}; padding:0 3px; border-radius:2px;">${s}</span>`,
+        under: `<span style="border-bottom:3px solid ${c.line}; font-weight:bold;">${s}</span>`,
+        wave:  `<span style="text-decoration:underline wavy ${c.fg}; text-underline-offset:4px;">${s}</span>`,
+        color: `<span style="color:${c.fg}; font-weight:bold;">${s}</span>`,
+      }[v];
+    }
+    case "heading": {
+      const s = esc(t), b = "margin:1.6em 0 0.8em; font-size:1.15em; font-weight:bold; color:#333; line-height:1.5;";
+      return {
+        left:   `<div style="${b} padding:4px 0 4px 12px; border-left:5px solid ${c.fg};">${s}</div>`,
+        under:  `<div style="${b} padding-bottom:6px; border-bottom:2px solid ${c.line};">${s}</div>`,
+        band:   `<div style="${b} padding:8px 14px; background:${c.bg}; color:${c.fg}; border-radius:6px;">${s}</div>`,
+        both:   `<div style="${b} padding:4px 0 6px 12px; border-left:5px solid ${c.fg}; border-bottom:1px solid ${c.line};">${s}</div>`,
+        pill:   `<div style="${b}"><span style="display:inline-block; background:${c.fg}; color:#fff; padding:4px 16px; border-radius:999px; font-size:0.9em;">${s}</span></div>`,
+        center: `<div style="${b} text-align:center; padding:8px 0; border-top:1px solid ${c.line}; border-bottom:1px solid ${c.line}; color:${c.fg}; letter-spacing:0.1em;">${s}</div>`,
+      }[v];
+    }
+    case "button": {
+      const raw = $("url").value.trim();
+      const href = /^https?:\/\//i.test(raw) ? esc(raw) : "#";
+      const base = "display:inline-block; padding:12px 28px; border-radius:999px; font-weight:bold; text-decoration:none;";
+      const st = {
+        fill:    `${base} background:${c.fg}; color:#fff;`,
+        outline: `${base} border:2px solid ${c.fg}; color:${c.fg}; background:#fff;`,
+        soft:    `${base} background:${c.bg}; color:${c.fg};`,
+      }[v];
+      return `<div style="text-align:center; margin:1.2em 0;"><a href="${href}" target="_blank" rel="noopener" style="${st}">${esc(t)}</a></div>`;
+    }
+    case "divider":
+      if (v === "ornament") return `<div style="text-align:center; color:${c.line}; letter-spacing:0.5em; margin:1.5em 0;">${esc(t)}</div>`;
+      return `<hr style="border:0; border-top:${v === "double" ? "4px double" : "2px " + v} ${c.line}; margin:1.5em 0; height:0;">`;
+  }
+}
+
+function render() {
+  const html = build();
+  const m = state.mode;
+  const inline = (m === "code" && state.variant.code === "inline") || m === "marker";
+  let p = html;
+  if (inline) p = m === "code" ? `URLの末尾 ${html} は消してOK` : `今日のライブは ${html} 絶対に見逃せない。`;
+  if (m === "divider") p = `ここまでが前半。${html}ここから後半。`;
+  if (m === "button" && !/^https?:\/\//i.test($("url").value.trim())) p += `<div style="font-size:12px;color:#c2366e;text-align:center;">URLを入れると、リンク先が設定されます</div>`;
+  $("preview").innerHTML = p;
+  $("preview").querySelectorAll("a").forEach(a => a.addEventListener("click", e => e.preventDefault()));
+  $("code").textContent = html;
+  try { localStorage.setItem("amebloTagState2", JSON.stringify(state)); } catch (e) {}
+}
+
+// tabs
+const tabs = $("tabs");
+MODES.forEach(m => {
+  const b = document.createElement("button");
+  b.setAttribute("role", "tab"); b.dataset.mode = m.id; b.textContent = m.name;
+  b.onclick = () => setMode(m.id);
+  tabs.appendChild(b);
+});
+
+function setMode(id, first) {
+  if (!first) texts[state.mode] = txt.value;
+  state.mode = id;
+  const m = MODES.find(x => x.id === id);
+  txt.value = texts[id];
+  txt.className = (m.mono ? "mono " : "") + (m.short ? "short" : "");
+  $("txt-label").textContent = m.textLabel || (id === "button" ? "ボタンの文字" : id === "heading" ? "見出しの文字" : "テキスト");
+  const f = m.fields || [];
+  $("f-title").hidden = !f.includes("title");
+  $("f-cite").hidden = !f.includes("cite");
+  $("f-url").hidden = !f.includes("url");
+  tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === id));
+  const vw = $("variants"); vw.innerHTML = "";
+  m.variants.forEach(([v, name]) => {
+    const ch = document.createElement("button");
+    ch.className = "chip"; ch.dataset.v = v; ch.textContent = name;
+    ch.setAttribute("aria-pressed", state.variant[id] === v);
+    ch.onclick = () => { state.variant[id] = v; vw.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === ch)); render(); };
+    vw.appendChild(ch);
+  });
+  render();
+}
+
+// swatches
+const sw = $("swatches");
+COLORS.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "sw"; b.dataset.id = c.id; b.title = c.name; b.setAttribute("aria-label", c.name);
+  b.style.background = c.bg; b.style.borderColor = c.line;
+  b.innerHTML = `<span style="color:${c.fg}">Aa</span>`;
+  b.onclick = () => { state.color = c.id; syncSw(); render(); };
+  sw.appendChild(b);
+});
+const syncSw = () => sw.querySelectorAll(".sw").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === state.color));
+
+["txt", "title", "cite", "url"].forEach(id => $(id).addEventListener("input", render));
+
+$("copy").onclick = async () => {
+  const btn = $("copy"), s = $("code").textContent;
+  const ok = () => { btn.textContent = "コピーしました"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = "タグをコピー"; btn.classList.remove("done"); }, 1600); };
+  try { await navigator.clipboard.writeText(s); ok(); }
+  catch (e) {
+    const r = document.createRange(); r.selectNodeContents($("code"));
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    btn.textContent = "選択しました。長押しでコピーしてください";
+  }
+};
+
+syncSw();
+setMode(MODES.some(m => m.id === state.mode) ? state.mode : "box", true);
+</script>
+</body>
+</html>
